@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LocationType {
+  GENERAL_WAREHOUSE
+  SECONDARY_WAREHOUSE
+  DINING_ROOM
+}
+
+enum MovementType {
+  PURCHASE
+  TRANSFER
+  WRITE_OFF
+}
+
+model Item {
+  id          String     @id @default(uuid())
+  name        String
+  category    String?
+  unit        String     @default("unidad")
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  movements   Movement[]
+  balances    Balance[]
+
+  @@index([name])
+}
+
+model Location {
+  id             String         @id @default(uuid())
+  name           String
+  type           LocationType
+  parentId       String?
+  parent         Location?      @relation("LocationHierarchy", fields: [parentId], references: [id])
+  children       Location[]     @relation("LocationHierarchy")
+  sourceMovements Movement[]    @relation("MovementSource")
+  targetMovements Movement[]    @relation("MovementTarget")
+  balances       Balance[]
+
+  @@index([type])
+  @@index([parentId])
+}
+
+model Movement {
+  id              String       @id @default(uuid())
+  type            MovementType
+  itemId          String
+  quantity        Int
+  sourceLocationId String?
+  targetLocationId String?
+  reason          String?
+  exerciseDate    DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  item            Item         @relation(fields: [itemId], references: [id])
+  sourceLocation  Location?    @relation("MovementSource", fields: [sourceLocationId], references: [id])
+  targetLocation  Location?    @relation("MovementTarget", fields: [targetLocationId], references: [id])
+
+  @@index([itemId, exerciseDate])
+  @@index([sourceLocationId])
+  @@index([targetLocationId])
+  @@index([type])
+}
+
+model Balance {
+  id           String   @id @default(uuid())
+  itemId       String
+  locationId   String
+  openingQty   Int      @default(0)
+  closingQty   Int      @default(0)
+  exerciseFrom DateTime
+  exerciseTo   DateTime
+  item         Item     @relation(fields: [itemId], references: [id])
+  location     Location @relation(fields: [locationId], references: [id])
+
+  @@unique([itemId, locationId, exerciseFrom, exerciseTo])
+  @@index([locationId, exerciseFrom, exerciseTo])
+}
