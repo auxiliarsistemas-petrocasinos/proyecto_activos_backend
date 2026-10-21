@@ -27,7 +27,7 @@ La interfaz está en `public/` y se sirve automáticamente desde Express. Incluy
 
 ## Puesta en marcha
 
-1. En pgAdmin 4, crear una base de datos llamada `inventarios` dentro del servidor PostgreSQL local.
+1. En pgAdmin 4, crear o seleccionar una base de datos llamada `AppMenaje` dentro del servidor PostgreSQL local.
 2. Copiar `.env.example` a `.env` y reemplazar `TU_PASSWORD` por la contraseña del usuario PostgreSQL.
 3. Verificar que `localhost` y `5432` coincidan con el host y puerto configurados en pgAdmin 4.
 4. Ejecutar `npm install`.
