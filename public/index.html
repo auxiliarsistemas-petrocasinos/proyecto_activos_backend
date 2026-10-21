@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#172a3a" />
+    <title>Inventario · Control operativo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">∷</span><span>menaje<span class="brand-dot">.</span></span></div>
+        <div class="workspace-label">OPERACIONES <span>2026</span></div>
+        <nav class="main-nav" aria-label="Navegación principal">
+          <button class="nav-item active" data-view="dashboard"><span>⌂</span> Resumen</button>
+          <button class="nav-item" data-view="inventory"><span>▦</span> Inventario</button>
+          <button class="nav-item" data-view="movements"><span>↗</span> Movimientos</button>
+          <button class="nav-item" data-view="catalog"><span>◌</span> Catálogo</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="sync-status"><span class="status-dot"></span><div><strong>API conectada</strong><small>Datos en tiempo real</small></div></div>
+          <div class="user-chip"><span class="avatar">AM</span><div><strong>Área de menaje</strong><small>Administración</small></div><span class="chevron">⌄</span></div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar"><div class="breadcrumb">Control operativo <span>/</span> <strong id="page-label">Resumen</strong></div><div class="top-actions"><span class="date-label" id="today"></span><button class="icon-button" title="Actualizar datos" id="refresh-button">↻</button><button class="primary-button" id="quick-movement">+ Registrar movimiento</button></div></header>
+
+        <section class="view active" id="dashboard-view">
+          <div class="page-heading"><div><p class="eyebrow">VISIÓN GENERAL</p><h1>Buenos días, equipo.</h1><p class="muted">Esto es lo que está pasando con el inventario hoy.</p></div><div class="period-control"><span>Ejercicio</span><strong>2026</strong><span>⌄</span></div></div>
+          <div class="stats-grid">
+            <article class="stat-card stat-card-dark"><div class="stat-top"><span>Elementos activos</span><span class="stat-icon">◌</span></div><strong class="stat-value" id="stat-items">—</strong><span class="stat-foot">en el catálogo</span></article>
+            <article class="stat-card"><div class="stat-top"><span>Ubicaciones</span><span class="stat-icon warm">⌖</span></div><strong class="stat-value" id="stat-locations">—</strong><span class="stat-foot">bodegas y comedores</span></article>
+            <article class="stat-card"><div class="stat-top"><span>Movimientos</span><span class="stat-icon blue">↗</span></div><strong class="stat-value" id="stat-movements">—</strong><span class="stat-foot">registros recientes</span></article>
+            <article class="stat-card stat-card-accent"><div class="stat-top"><span>Última actualización</span><span class="stat-icon">◷</span></div><strong class="stat-value small-value" id="stat-updated">Ahora</strong><span class="stat-foot">sincronización automática</span></article>
+          </div>
+          <div class="dashboard-grid">
+            <section class="panel location-panel"><div class="panel-header"><div><p class="eyebrow">DISTRIBUCIÓN</p><h2>Existencias por ubicación</h2></div><button class="text-button" data-view="inventory">Ver inventario <span>→</span></button></div><div id="location-summary" class="location-summary"><div class="empty-state">Cargando existencias<span class="loading-line"></span></div></div></section>
+            <section class="panel activity-panel"><div class="panel-header"><div><p class="eyebrow">TRAZABILIDAD</p><h2>Actividad reciente</h2></div><button class="text-button" data-view="movements">Ver todo <span>→</span></button></div><div id="recent-movements" class="activity-list"><div class="empty-state">Cargando movimientos<span class="loading-line"></span></div></div></section>
+          </div>
+        </section>
+
+        <section class="view" id="inventory-view"><div class="page-heading compact"><div><p class="eyebrow">CONTROL DE EXISTENCIAS</p><h1>Inventario</h1><p class="muted">Consulta el saldo actual por elemento y ubicación.</p></div><button class="primary-button" id="inventory-refresh">↻ Actualizar</button></div><div class="toolbar"><label class="search-box"><span>⌕</span><input id="inventory-search" type="search" placeholder="Buscar elemento..." /></label><select id="location-filter"><option value="">Todas las ubicaciones</option></select></div><div class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Elemento</th><th>Categoría</th><th>Ubicación</th><th>Saldo actual</th><th>Unidad</th></tr></thead><tbody id="inventory-table"></tbody></table></div></div></section>
+
+        <section class="view" id="movements-view"><div class="page-heading compact"><div><p class="eyebrow">HISTORIAL</p><h1>Movimientos</h1><p class="muted">Cada entrada, traslado y baja queda registrada aquí.</p></div><button class="primary-button" id="movement-page-button">+ Registrar movimiento</button></div><div class="toolbar"><label class="search-box"><span>⌕</span><input id="movement-search" type="search" placeholder="Buscar elemento o motivo..." /></label><select id="movement-filter"><option value="">Todos los tipos</option><option value="PURCHASE">Compras</option><option value="TRANSFER">Traslados</option><option value="WRITE_OFF">Bajas</option></select></div><div class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Elemento</th><th>Cantidad</th><th>Ruta</th><th>Motivo</th></tr></thead><tbody id="movements-table"></tbody></table></div></div></section>
+
+        <section class="view" id="catalog-view"><div class="page-heading compact"><div><p class="eyebrow">MAESTROS</p><h1>Catálogo</h1><p class="muted">Elementos y ubicaciones disponibles para operar.</p></div><button class="primary-button" id="catalog-refresh">↻ Actualizar</button></div><div class="catalog-grid"><section class="panel"><div class="panel-header"><div><p class="eyebrow">ELEMENTOS</p><h2>Catálogo de menaje</h2></div><span class="count-pill" id="catalog-count">0</span></div><div id="catalog-items" class="catalog-list"></div></section><section class="panel"><div class="panel-header"><div><p class="eyebrow">ESTRUCTURA</p><h2>Ubicaciones</h2></div><span class="count-pill" id="locations-count">0</span></div><div id="catalog-locations" class="catalog-list"></div></section></div></section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="movement-modal" aria-hidden="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-header"><div><p class="eyebrow">NUEVO REGISTRO</p><h2 id="modal-title">Registrar movimiento</h2></div><button class="close-button" id="close-modal">×</button></div><form id="movement-form"><label>Tipo de movimiento<select name="type" id="movement-type" required><option value="PURCHASE">Compra</option><option value="TRANSFER">Traslado</option><option value="WRITE_OFF">Baja</option></select></label><label>Elemento<select name="itemId" id="movement-item" required></select></label><label>Cantidad<input type="number" name="quantity" min="1" step="1" required /></label><label id="source-field">Ubicación de origen<select name="sourceLocationId" id="movement-source"><option value="">Seleccionar ubicación</option></select></label><label id="target-field">Ubicación de destino<select name="targetLocationId" id="movement-target"><option value="">Seleccionar ubicación</option></select></label><label>Motivo <span class="optional">opcional</span><input type="text" name="reason" placeholder="Ej. reposición de inventario" /></label><label>Fecha<select name="exerciseDate" id="movement-date"><option value="today">Hoy</option></select></label><div class="form-feedback" id="form-feedback"></div><div class="modal-actions"><button type="button" class="secondary-button" id="cancel-modal">Cancelar</button><button type="submit" class="primary-button">Guardar movimiento</button></div></form></section></div>
+    <div class="toast" id="toast"></div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

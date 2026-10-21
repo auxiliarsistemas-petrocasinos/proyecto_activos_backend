@@ -1,10 +1,18 @@
+import 'dotenv/config'
 import express, { NextFunction, Request, Response } from 'express'
 import { Prisma, PrismaClient, LocationType, MovementType } from '@prisma/client'
 import { z } from 'zod'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const prisma = new PrismaClient()
 const app = express()
 app.use(express.json())
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const publicDir = path.resolve(__dirname, '../public')
+app.use(express.static(publicDir))
 
 const positiveInt = z.number().int().positive()
 
@@ -38,6 +46,11 @@ class ApiError extends Error {
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true })
+})
+
+app.get('/health/db', async (_req, res) => {
+  await prisma.$queryRaw`SELECT 1`
+  res.json({ ok: true, database: 'connected' })
 })
 
 app.post('/api/items', async (req, res) => {
@@ -85,6 +98,15 @@ app.get('/api/locations', async (req, res) => {
     orderBy: { name: 'asc' }
   })
   res.json(locations)
+})
+
+app.get('/api/movements', async (req, res) => {
+  const movements = await prisma.movement.findMany({
+    include: { item: true, sourceLocation: true, targetLocation: true },
+    orderBy: { exerciseDate: 'desc' },
+    take: 100
+  })
+  res.json(movements)
 })
 
 app.post('/api/movements', async (req, res) => {
@@ -166,4 +188,15 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 })
 
 const port = Number(process.env.PORT ?? 3000)
-app.listen(port, () => console.log(`API escuchando en http://localhost:${port}`))
+const server = app.listen(port, () => console.log(`API escuchando en http://localhost:${port}`))
+
+async function shutdown(signal: string) {
+  console.log(`Recibida señal ${signal}. Cerrando API...`)
+  server.close(async () => {
+    await prisma.$disconnect()
+    process.exit(0)
+  })
+}
+
+process.once('SIGINT', () => void shutdown('SIGINT'))
+process.once('SIGTERM', () => void shutdown('SIGTERM'))
