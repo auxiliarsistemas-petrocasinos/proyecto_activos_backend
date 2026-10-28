@@ -14,14 +14,28 @@ enum LocationType {
 }
 
 enum MovementType {
+  INITIAL_BALANCE
   PURCHASE
   TRANSFER
   WRITE_OFF
 }
 
+model Field {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  locations   Location[]
+}
+
 model Item {
   id          String     @id @default(uuid())
   name        String
+  reference   String?
+  detail1     String?
+  detail2     String?
   category    String?
   unit        String     @default("unidad")
   active      Boolean    @default(true)
@@ -31,6 +45,7 @@ model Item {
   balances    Balance[]
 
   @@index([name])
+  @@index([reference])
 }
 
 model Location {
@@ -38,14 +53,17 @@ model Location {
   name           String
   type           LocationType
   parentId       String?
+  fieldId        String?
   parent         Location?      @relation("LocationHierarchy", fields: [parentId], references: [id])
   children       Location[]     @relation("LocationHierarchy")
+  field          Field?         @relation(fields: [fieldId], references: [id])
   sourceMovements Movement[]    @relation("MovementSource")
   targetMovements Movement[]    @relation("MovementTarget")
   balances       Balance[]
 
   @@index([type])
   @@index([parentId])
+  @@index([fieldId])
 }
 
 model Movement {

@@ -18,14 +18,29 @@ const positiveInt = z.number().int().positive()
 
 const itemSchema = z.object({
   name: z.string().trim().min(1),
+  reference: z.string().trim().min(1).optional(),
+  detail1: z.string().trim().min(1).optional(),
+  detail2: z.string().trim().min(1).optional(),
   category: z.string().trim().min(1).optional(),
   unit: z.string().trim().min(1).default('unidad')
+})
+
+const fieldSchema = z.object({
+  name: z.string().trim().min(1),
+  description: z.string().trim().optional()
 })
 
 const locationSchema = z.object({
   name: z.string().trim().min(1),
   type: z.nativeEnum(LocationType),
-  parentId: z.string().uuid().optional()
+  parentId: z.string().uuid().optional(),
+  fieldId: z.string().uuid().optional()
+})
+
+const locationUpdateSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  parentId: z.string().uuid().nullable().optional(),
+  fieldId: z.string().uuid().nullable().optional()
 })
 
 const movementSchema = z.object({
@@ -64,8 +79,48 @@ app.get('/api/items', async (_req, res) => {
   res.json(items)
 })
 
+app.post('/api/fields', async (req, res) => {
+  const data = fieldSchema.parse(req.body)
+  const field = await prisma.field.create({ data })
+  res.status(201).json(field)
+})
+
+app.get('/api/fields', async (_req, res) => {
+  const fields = await prisma.field.findMany({
+    where: { active: true },
+    include: { _count: { select: { locations: true } } },
+    orderBy: { name: 'asc' }
+  })
+  res.json(fields.map(({ _count, ...field }) => ({ ...field, locationCount: _count.locations })))
+})
+
+app.patch('/api/fields/:id', async (req, res) => {
+  const data = fieldSchema.partial().parse(req.body)
+  const field = await prisma.field.update({ where: { id: req.params.id }, data })
+  res.json(field)
+})
+
+app.delete('/api/fields/:id', async (req, res) => {
+  const locations = await prisma.location.count({ where: { fieldId: req.params.id } })
+  if (locations > 0) throw new ApiError(409, 'No se puede eliminar un campo con bodegas asignadas')
+  await prisma.field.delete({ where: { id: req.params.id } })
+  res.status(204).send()
+})
+
 app.post('/api/locations', async (req, res) => {
   const data = locationSchema.parse(req.body)
+
+  if (data.type !== LocationType.DINING_ROOM && !data.fieldId) {
+    throw new ApiError(400, 'Una bodega requiere un campo asignado')
+  }
+  if (data.type === LocationType.DINING_ROOM && data.fieldId) {
+    throw new ApiError(400, 'Un comedor debe heredar el campo de su bodega')
+  }
+
+  if (data.fieldId) {
+    const field = await prisma.field.findUnique({ where: { id: data.fieldId } })
+    if (!field || !field.active) throw new ApiError(404, 'Campo no encontrado o inactivo')
+  }
 
   if (data.type === LocationType.GENERAL_WAREHOUSE && data.parentId) {
     throw new ApiError(400, 'La bodega general no puede tener una ubicación superior')
@@ -80,7 +135,7 @@ app.post('/api/locations', async (req, res) => {
     if (!parent) throw new ApiError(404, 'Ubicación superior no encontrada')
     const validParent = data.type === LocationType.SECONDARY_WAREHOUSE
       ? parent.type === LocationType.GENERAL_WAREHOUSE
-      : parent.type === LocationType.SECONDARY_WAREHOUSE
+      : parent.type === LocationType.GENERAL_WAREHOUSE || parent.type === LocationType.SECONDARY_WAREHOUSE
     if (!validParent) {
       throw new ApiError(400, 'La jerarquía de ubicaciones no es válida')
     }
@@ -94,10 +149,53 @@ app.get('/api/locations', async (req, res) => {
   const type = req.query.type ? z.nativeEnum(LocationType).parse(req.query.type) : undefined
   const locations = await prisma.location.findMany({
     where: { type },
-    include: { parent: true },
+    include: { parent: { include: { field: true } }, field: true },
     orderBy: { name: 'asc' }
   })
   res.json(locations)
+})
+
+app.patch('/api/locations/:id', async (req, res) => {
+  const data = locationUpdateSchema.parse(req.body)
+  const current = await prisma.location.findUnique({ where: { id: req.params.id } })
+  if (!current) throw new ApiError(404, 'Ubicación no encontrada')
+
+  const fieldId = data.fieldId === undefined ? current.fieldId : data.fieldId
+  const parentId = data.parentId === undefined ? current.parentId : data.parentId
+  if (current.type !== LocationType.DINING_ROOM && !fieldId) {
+    throw new ApiError(400, 'Una bodega requiere un campo asignado')
+  }
+  if (current.type === LocationType.DINING_ROOM && fieldId) {
+    throw new ApiError(400, 'Un comedor debe heredar el campo de su bodega')
+  }
+  if (fieldId) {
+    const field = await prisma.field.findUnique({ where: { id: fieldId } })
+    if (!field || !field.active) throw new ApiError(404, 'Campo no encontrado o inactivo')
+  }
+  if (parentId) {
+    const parent = await prisma.location.findUnique({ where: { id: parentId } })
+    if (!parent) throw new ApiError(404, 'Ubicación superior no encontrada')
+    const validParent = current.type === LocationType.SECONDARY_WAREHOUSE
+      ? parent.type === LocationType.GENERAL_WAREHOUSE
+      : current.type === LocationType.DINING_ROOM && (parent.type === LocationType.GENERAL_WAREHOUSE || parent.type === LocationType.SECONDARY_WAREHOUSE)
+    if (!validParent) throw new ApiError(400, 'La jerarquía de ubicaciones no es válida')
+  }
+
+  const location = await prisma.location.update({ where: { id: req.params.id }, data })
+  res.json(location)
+})
+
+app.delete('/api/locations/:id', async (req, res) => {
+  const [children, movements, balances] = await Promise.all([
+    prisma.location.count({ where: { parentId: req.params.id } }),
+    prisma.movement.count({ where: { OR: [{ sourceLocationId: req.params.id }, { targetLocationId: req.params.id }] } }),
+    prisma.balance.count({ where: { locationId: req.params.id } })
+  ])
+  if (children || movements || balances) {
+    throw new ApiError(409, 'No se puede eliminar una ubicación que tiene dependencias')
+  }
+  await prisma.location.delete({ where: { id: req.params.id } })
+  res.status(204).send()
 })
 
 app.get('/api/movements', async (req, res) => {
@@ -111,6 +209,14 @@ app.get('/api/movements', async (req, res) => {
 
 app.post('/api/movements', async (req, res) => {
   const data = movementSchema.parse(req.body)
+
+  if (data.exerciseDate) {
+    const tomorrow = new Date()
+    tomorrow.setHours(24, 0, 0, 0)
+    if (data.exerciseDate >= tomorrow) {
+      throw new ApiError(400, 'La fecha del movimiento no puede ser posterior a hoy')
+    }
+  }
 
   if (data.type === MovementType.PURCHASE && (!data.targetLocationId || data.sourceLocationId)) {
     throw new ApiError(400, 'Una compra requiere destino y no puede tener origen')

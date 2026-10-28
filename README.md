@@ -14,6 +14,8 @@ Los traslados generan una salida en el origen y una entrada en el destino, sin m
 - `Location`: bodega general, bodega secundaria o comedor.
 - `Movement`: compra, traslado o baja, con fecha y trazabilidad.
 - `Balance`: inventario inicial y final de un elemento por ubicación y ejercicio.
+- `Field`: campo operativo al que se asignan las bodegas.
+- Módulos web de Campos, Bodegas y Comedores con operaciones CRUD.
 
 ## Frontend
 
@@ -35,5 +37,12 @@ La interfaz está en `public/` y se sirve automáticamente desde Express. Incluy
 6. Ejecutar `npx prisma migrate dev --name initial_inventory`.
 7. Ejecutar `npm run dev` y abrir `http://localhost:3000`.
 8. Confirmar la conexión en `http://localhost:3000/health/db`.
+
+Si la migración inicial ya fue aplicada, ejecuta para aplicar la nueva estructura:
+
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
 
 pgAdmin 4 no recibe conexiones directamente: el backend se conecta al servidor PostgreSQL que pgAdmin administra mediante `DATABASE_URL`.
